@@ -12,20 +12,24 @@ from datetime import datetime
 class TestRecord1:
     id: int = 0
     name: str = '山田'
-    birth: date = datetime.now()
+    birth: datetime = datetime.now()
     value: Decimal = Decimal('0.893')
 @dataclass
 class TestRecord2:
     id: int
     name: str
-    birth: date
+    birth: datetime 
     value: Decimal
 
 class TestSqlBuilder(unittest.TestCase):
     def setUp(self): self.target = SqlBuilder()
     def tearDown(self): pass
+    def test_table_name_from_class(self):
+        self.assertEqual(TestRecord1.__name__, self.target.table_name(TestRecord1))
     def test_table_name_1(self):
         self.assertEqual(TestRecord1.__name__, self.target.table_name(TestRecord1()))
+    def test_column_names_from_class(self):
+        self.assertEqual(['id', 'name', 'birth', 'value'], self.target.column_names(TestRecord1))
     def test_column_names_1(self):
         self.assertEqual(['id', 'name', 'birth', 'value'], self.target.column_names(TestRecord1()))
     def test_column_index_0(self):
@@ -39,11 +43,17 @@ class TestSqlBuilder(unittest.TestCase):
     def test_to_const_id(self):
         self.assertEqual('not null primary key', self.target.to_const(TestRecord2.__dataclass_fields__['id']))
         self.assertEqual('not null primary key default 0', self.target.to_const(TestRecord1.__dataclass_fields__['id']))
-        #TestRecord1.__dataclass_fields__.values():
-        #self.assertEqual('primary key', self.target.to_const(field(name='id', type=int, default=dataclasses.MISSING)))
-        #kself.assertEqual('primary key', self.target.to_const(field('id', int, dataclasses.MISSING)))
-        #self.assertEqual('primary key', self.target.to_const(Field(name='id')))
-        #self.assertEqual('primary key', self.target.to_const(Field('id', int, dataclasses.MISSING)))
+    def test_quote(self):
+        self.assertEqual('123', self.target.quote(123))
+        self.assertEqual('123.45', self.target.quote(123.45))
+        self.assertEqual('1', self.target.quote(True))
+        self.assertEqual('0', self.target.quote(False))
+        self.assertEqual("'ABC'", self.target.quote('ABC'))
+        self.assertEqual("'2000-01-01T00:00:00Z'", self.target.quote(datetime.fromisoformat('2000-01-01T00:00:00+00:00')))
+        #self.assertEqual("'2000-01-01T00:00:00Z'", datetime.fromisoformat('2000-01-01T00:00:00Z'))
+    def test_create_table(self):
+        self.assertEqual('create table if not exists TestRecord2 (id integer not null primary key,name text not null,birth text not null,value text not null);', self.target.create_table(TestRecord2))
+        
         
     """
     def test_split(self):
