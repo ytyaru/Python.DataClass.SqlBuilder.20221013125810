@@ -36,7 +36,8 @@ class SqlBuilder:
         consts = ['not null']
         if 'id' == f.name: consts.append('primary key')
         if f.type is bool: consts.append(f"check({f.name} = 0 or {f.name} = 1)")
-        if type(f.default) is not dataclasses._MISSING_TYPE: consts.append(f"default {f.default}")
+        #if type(f.default) is not dataclasses._MISSING_TYPE: consts.append(f"default {f.default}")
+        if f.default is not dataclasses._MISSING_TYPE and type(f.default) is not dataclasses._MISSING_TYPE: consts.append(f"default {f.default}")
         if isinstance(f.metadata, list): consts += [self.expand_metadata(k,v) for k,v in f.metadata.items()]
         #if isinstance(f.metadata, list): consts += f.metadata
         return ' '.join(consts)
@@ -86,6 +87,7 @@ class SqlBuilder:
                 w = f.metadata[key].split(' ')
                 return f'references {w[1]}({w[2]})'
             case 'CK': return f'check ({f.metadata[key]})'
+            case 'NOW': return f'default current_timestamp'
             case _: return v
     def create_table(self, data):
         #for name, type in data.__annotations__.entries():

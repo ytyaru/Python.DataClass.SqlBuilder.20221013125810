@@ -10,39 +10,47 @@ from datetime import date
 from datetime import datetime 
 @dataclass
 class TestRecord1:
+    id: int
+    name: str
+    birth: datetime 
+    value: Decimal
+@dataclass
+class TestRecord2:
     id: int = 0
     name: str = '山田'
     birth: datetime = datetime.now()
     value: Decimal = Decimal('0.893')
 @dataclass
-class TestRecord2:
+class TestRecord3:
     id: int
     name: str
-    birth: datetime 
-    value: Decimal
+    birth: datetime = field(default=dataclasses._MISSING_TYPE, metadata={'NOW':''})
+    value: Decimal = dataclasses._MISSING_TYPE # TypeError: non-default argument 'value' follows default argument
+    #value: Decimal # TypeError: non-default argument 'value' follows default argument
+
 
 class TestSqlBuilder(unittest.TestCase):
     def setUp(self): self.target = SqlBuilder()
     def tearDown(self): pass
     def test_table_name_from_class(self):
         self.assertEqual(TestRecord1.__name__, self.target.table_name(TestRecord1))
-    def test_table_name_1(self):
-        self.assertEqual(TestRecord1.__name__, self.target.table_name(TestRecord1()))
+    def test_table_name_from_instance(self):
+        self.assertEqual(TestRecord2.__name__, self.target.table_name(TestRecord2()))
     def test_column_names_from_class(self):
         self.assertEqual(['id', 'name', 'birth', 'value'], self.target.column_names(TestRecord1))
-    def test_column_names_1(self):
-        self.assertEqual(['id', 'name', 'birth', 'value'], self.target.column_names(TestRecord1()))
-    def test_column_index_0(self):
+    def test_column_names_from_instance(self):
+        self.assertEqual(['id', 'name', 'birth', 'value'], self.target.column_names(TestRecord2()))
+    def test_column_index(self):
         for id, name in [(0, 'id'), (1, 'name'), (2, 'birth'), (3, 'value')]:
             with self.subTest(f'{name}'):
-                self.assertEqual(id, self.target.column_index(TestRecord1(), name))
+                self.assertEqual(id, self.target.column_index(TestRecord1, name))
     def test_to_type(self):
         for actual, expected in [(int, 'integer'), (bool, 'integer'), (float, 'real'), (complex, 'real'), (Decimal, 'text'), (date, 'text')]:
             with self.subTest(f'{actual}'):
                 self.assertEqual(expected, self.target.to_type(actual))
     def test_to_const_id(self):
-        self.assertEqual('not null primary key', self.target.to_const(TestRecord2.__dataclass_fields__['id']))
-        self.assertEqual('not null primary key default 0', self.target.to_const(TestRecord1.__dataclass_fields__['id']))
+        self.assertEqual('not null primary key', self.target.to_const(TestRecord1.__dataclass_fields__['id']))
+        self.assertEqual('not null primary key default 0', self.target.to_const(TestRecord2.__dataclass_fields__['id']))
     def test_quote(self):
         self.assertEqual('123', self.target.quote(123))
         self.assertEqual('123.45', self.target.quote(123.45))
@@ -52,7 +60,10 @@ class TestSqlBuilder(unittest.TestCase):
         self.assertEqual("'2000-01-01T00:00:00Z'", self.target.quote(datetime.fromisoformat('2000-01-01T00:00:00+00:00')))
         #self.assertEqual("'2000-01-01T00:00:00Z'", datetime.fromisoformat('2000-01-01T00:00:00Z'))
     def test_create_table(self):
-        self.assertEqual('create table if not exists TestRecord2 (id integer not null primary key,name text not null,birth text not null,value text not null);', self.target.create_table(TestRecord2))
+        self.assertEqual('create table if not exists TestRecord1 (id integer not null primary key,name text not null,birth text not null,value text not null);', self.target.create_table(TestRecord1))
+    def test_create_table_default(self):
+        self.assertEqual('create table if not exists TestRecord3 (id integer not null primary key,name text not null,birth text not null default current_timestamp,value text not null);', self.target.create_table(TestRecord3))
+        #self.assertEqual('create table if not exists TestRecord2 (id integer not null primary key,name text not null,birth text not null,value text not null);', self.target.create_table(TestRecord2))
         
         
     """
